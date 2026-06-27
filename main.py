@@ -12,7 +12,7 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Railway က Variables ထဲက GEMINI_API_KEY ကို ဆွဲယူခြင်း
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA")
 
 @app.get("/")
 def home():
