@@ -2,7 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
-import requests  # Google SDK အစား တိုက်ရိုက် HTTP Request သုံးရန်
+import requests
+import json  # JSON string အဖြစ် ပြောင်းလဲရန် လိုအပ်ပါတယ်
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
 
@@ -11,9 +12,8 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ဆီမှာရှိတဲ့ AQ. နဲ့စတဲ့ Key အပြည့်အစုံကို ဒီနေရာမှာ အစားထိုးထည့်ပေးပါဗျာ
-API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA" 
-
+# 🔑 သင့်ရဲ့ AQ. နဲ့စတဲ့ Key အပြည့်အစုံကို ဒီနေရာမှာ အစားထိုးထည့်ပေးပါဗျာ
+API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
 @app.get("/")
 def home():
     return HTMLResponse("""
@@ -137,13 +137,14 @@ async def upload(
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # --- အဆင့် ၁: Google API သို့ ဗီဒီယို တိုက်ရိုက် Upload တင်ခြင်း (v1 Endpoint) ---
+        # --- အဆင့် ၁: Google API သို့ ဗီဒီယို တိုက်ရိုက် Upload တင်ခြင်း ---
         upload_url = f"https://generativelanguage.googleapis.com/v1/files?key={API_KEY}"
         metadata = {"file": {"displayName": video_name}}
         
         with open(orig_video_path, "rb") as f:
             files = {
-                'metadata': (None, requests.utils.to_key_val_list(metadata), 'application/json'),
+                # bytes parsing အမှားကို json.dumps ဖြင့် သေချာပြင်ဆင်ထားပါတယ်
+                'metadata': (None, json.dumps(metadata), 'application/json'),
                 'file': (video_name, f, file.content_type)
             }
             print("Uploading video via Direct HTTP API...")
