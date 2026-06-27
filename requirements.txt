@@ -1,4 +1,7 @@
-fastapi
-uvicorn
+google-genai
+google-generativeai
 python-multipart
-jinja2
+gTTS
+moviepy
+uvicorn
+fastapi
