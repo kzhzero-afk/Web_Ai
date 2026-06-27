@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
-import google.genai as genai  # အမှန်ကန်ဆုံး Import ပုံစံ ပြောင်းထားပါတယ်
+import google.genai as genai
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
 
@@ -11,8 +11,9 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Railway က Variables ထဲက GEMINI_API_KEY ကို ဆွဲယူခြင်း)
-API_KEY = os.environ.get("AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA")
+# 🔑 သင့်ရဲ့ API Key ကို ကုဒ်ထဲမှာ တိုက်ရိုက် အသေထည့်ပေးထားလိုက်ပါတယ်ဗျာ
+API_KEY = "AIzaSyAQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
+
 @app.get("/")
 def home():
     return HTMLResponse("""
@@ -55,7 +56,6 @@ def home():
                 <div class="grid">
                     <div class="col">
                         <div class="section-title">ဖြတ်မည့် အမျိုးအစား & Zoom</div>
-                        
                         <div class="form-group">
                             <label>ဗီဒီယို Ratio</label>
                             <select name="ratio">
@@ -64,7 +64,6 @@ def home():
                                 <option value="169">16:9 (Landscape)</option>
                             </select>
                         </div>
-                        
                         <div class="form-group">
                             <label>Zoom Level</label>
                             <select name="zoom_level">
@@ -73,7 +72,6 @@ def home():
                                 <option value="1.5">1.5x</option>
                             </select>
                         </div>
-                        
                         <div class="form-group">
                             <label>Mirror Flip (ဘယ်/ညာ လှန်မည်)</label>
                             <select name="mirror">
@@ -85,7 +83,6 @@ def home():
 
                     <div class="col">
                         <div class="section-title">ဇာတ်လမ်းပြောမည့် အသံနှင့် စတိုင်</div>
-                        
                         <div class="form-group">
                             <label>အသံဇာတ်ကောင် (Voice)</label>
                             <select name="voice_lang">
@@ -93,7 +90,6 @@ def home():
                                 <option value="en">အင်္ဂလိပ်အသံ (English)</option>
                             </select>
                         </div>
-
                         <div class="form-group">
                             <label>ဇာတ်ကြောင်းပြောမည့် စတိုင် (Narrative Style)</label>
                             <select name="style">
@@ -101,7 +97,6 @@ def home():
                                 <option value="first_person">First-Person (ကျွန်တော်/ကျွန်မ စတိုင်)</option>
                             </select>
                         </div>
-
                         <div class="form-group">
                             <label>အသံ မြန်နှုန်း (TTS Speed %)</label>
                             <input type="range" name="tts_speed" min="0.8" max="1.5" step="0.1" value="1.0">
@@ -147,11 +142,8 @@ async def upload(
     with open(orig_video_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    if not API_KEY:
-        return {"error": "API Key မရှိသေးပါဗျာ။"}
-
     try:
-        # Client Initialize ပုံစံသစ်
+        # တိုက်ရိုက် သတ်မှတ်ထားတဲ့ API_KEY ကို သုံးမယ်
         client = genai.Client(api_key=API_KEY)
         print("Uploading video to Gemini...")
         video_file = client.files.upload(file=orig_video_path)
@@ -239,4 +231,4 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
-    
+            
