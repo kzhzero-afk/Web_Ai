@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
-import google.generativeai as genai  # အားလုံးနဲ့ အဆင်ပြေမယ့် SDK အဟောင်းကို သုံးခြင်း
+import requests  # Google SDK အစား တိုက်ရိုက် HTTP Request သုံးရန်
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
 
@@ -11,11 +11,8 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ဆီမှာရှိတဲ့ AQ. နဲ့စတဲ့ Key ကိုပဲ ဒီထဲမှာ သေချာ ထည့်ပေးလိုက်ပါဗျာ
-API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
-
-# SDK ကို Key နဲ့ ချိတ်ဆက်ခြင်း
-genai.configure(api_key=API_KEY)
+# 🔑 သင့်ဆီမှာရှိတဲ့ AQ. နဲ့စတဲ့ Key အပြည့်အစုံကို ဒီနေရာမှာ အစားထိုးထည့်ပေးပါဗျာ
+API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA" 
 
 @app.get("/")
 def home():
@@ -140,10 +137,26 @@ async def upload(
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        print("Uploading video via legacy method...")
-        # SDK ဟောင်းရဲ့ ဗီဒီယိုတင်နည်းပုံစံ
-        video_file = genai.upload_file(path=orig_video_path)
+        # --- အဆင့် ၁: Google API သို့ ဗီဒီယို တိုက်ရိုက် Upload တင်ခြင်း (v1 Endpoint) ---
+        upload_url = f"https://generativelanguage.googleapis.com/v1/files?key={API_KEY}"
+        metadata = {"file": {"displayName": video_name}}
+        
+        with open(orig_video_path, "rb") as f:
+            files = {
+                'metadata': (None, requests.utils.to_key_val_list(metadata), 'application/json'),
+                'file': (video_name, f, file.content_type)
+            }
+            print("Uploading video via Direct HTTP API...")
+            upload_res = requests.post(upload_url, files=files)
+            
+        if upload_res.status_code != 200:
+            return {"status": "failed", "stage": "upload", "error": upload_res.text}
+            
+        video_data = upload_res.json()
+        file_uri = video_data["file"]["uri"]
+        file_name_api = video_data["file"]["name"]
 
+        # --- အဆင့် ၂: Gemini 1.5 Flash ဖြင့် စာသားတိုက်ရိုက် Generate လုပ်ခြင်း ---
         length_prompt = "1-2 short sentences" if detail == "short" else "3-4 sentences" if detail == "normal" else "detailed paragraphs"
         prompt_lang = "Burmese (မြန်မာဘာသာ)" if voice_lang == "my" else "English"
         
@@ -154,17 +167,29 @@ async def upload(
         Do not use markdown formatting like asterisks or bullet points. Just output clean plain text.
         """
 
-        print("Analyzing video with Gemini Flash...")
-        # Model ခေါ်ယူပုံစံသစ် ပြင်ဆင်ခြင်း
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content([video_file, prompt])
-        recap_text = response.text
+        gen_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"file_data": {"file_uri": file_uri, "mime_type": file.content_type}},
+                    {"text": prompt}
+                ]
+            }]
+        }
+        
+        print("Analyzing video via Direct HTTP API...")
+        gen_res = requests.post(gen_url, json=payload)
+        
+        if gen_res.status_code != 200:
+            return {"status": "failed", "stage": "generate", "error": gen_res.text}
+            
+        recap_text = gen_res.json()["candidates"][0]["content"]["parts"][0]["text"]
         print(f"Generated Script: {recap_text}")
 
+        # --- အဆင့် ၃: TTS နှင့် Video Editing လုပ်ငန်းစဉ်များ ---
         tts = gTTS(text=recap_text, lang=voice_lang, slow=False)
         tts.save(temp_audio_path)
 
-        print("Processing Video Editing Options...")
         video_clip = VideoFileClip(orig_video_path)
         voiceover_clip = AudioFileClip(temp_audio_path)
 
@@ -185,7 +210,11 @@ async def upload(
         video_clip.close()
         voiceover_clip.close()
         final_clip.close()
-        genai.delete_file(name=video_file.name)
+        
+        # Google Server ပေါ်က ဖိုင်ကို ပြန်ဖျက်ခြင်း
+        delete_url = f"https://generativelanguage.googleapis.com/v1/{file_name_api}?key={API_KEY}"
+        requests.delete(delete_url)
+        
         if os.path.exists(orig_video_path): os.remove(orig_video_path)
         if os.path.exists(temp_audio_path): os.remove(temp_audio_path)
 
@@ -226,4 +255,4 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
-                           
+    
