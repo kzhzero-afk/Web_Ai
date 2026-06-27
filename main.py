@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
-from google import genai
+import google.genai as genai  # အမှန်ကန်ဆုံး Import ပုံစံ ပြောင်းထားပါတယ်
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
 
@@ -11,6 +11,7 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Railway က Variables ထဲက GEMINI_API_KEY ကို ဆွဲယူခြင်း
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 @app.get("/")
@@ -89,7 +90,7 @@ def home():
                         <div class="form-group">
                             <label>အသံဇာတ်ကောင် (Voice)</label>
                             <select name="voice_lang">
-                                <option value="my">မြန်မာအသံ (Myanmar - Default)</option>
+                                <option value="my">မြန်မာအသံ (Myanmar)</option>
                                 <option value="en">အင်္ဂလိပ်အသံ (English)</option>
                             </select>
                         </div>
@@ -151,14 +152,12 @@ async def upload(
         return {"error": "API Key မရှိသေးပါဗျာ။"}
 
     try:
+        # Client Initialize ပုံစံသစ်
         client = genai.Client(api_key=API_KEY)
         print("Uploading video to Gemini...")
         video_file = client.files.upload(file=orig_video_path)
 
-        # Detail Level အလိုက် Prompt ကို ပြောင်းလဲသတ်မှတ်ခြင်း
         length_prompt = "1-2 short sentences" if detail == "short" else "3-4 sentences" if detail == "normal" else "detailed paragraphs"
-        
-        # အကယ်၍ မြန်မာသံရွေးထားရင် Gemini ကို မြန်မာလို စာသား ထုတ်ခိုင်းမယ်
         prompt_lang = "Burmese (မြန်မာဘာသာ)" if voice_lang == "my" else "English"
         
         prompt = f"""
@@ -176,35 +175,27 @@ async def upload(
         recap_text = response.text
         print(f"Generated Script: {recap_text}")
 
-        # စာသားကို မြန်မာသံ သို့မဟုတ် အင်္ဂလိပ်သံဖြင့် အသံပြောင်းခြင်း
         tts = gTTS(text=recap_text, lang=voice_lang, slow=False)
         tts.save(temp_audio_path)
 
-        # MoviePy ဖြင့် ဗီဒီယို Edit ပြုလုပ်ခြင်း
         print("Processing Video Editing Options...")
         video_clip = VideoFileClip(orig_video_path)
         voiceover_clip = AudioFileClip(temp_audio_path)
 
-        # 1. Mirror Flip Option
         if mirror == "true":
             video_clip = video_clip.fx(vfx.mirror_x)
 
-        # 2. Zoom Option (Resize)
         if zoom_level > 1.0:
             video_clip = video_clip.resize(zoom_level)
 
-        # Audio ပေါင်းစပ်ခြင်း
         if video_clip.audio is not None:
             combined_audio = CompositeAudioClip([video_clip.audio.volumex(0.2), voiceover_clip.volumex(1.8)])
         else:
             combined_audio = voiceover_clip
 
         final_clip = video_clip.set_audio(combined_audio)
-        
-        # တကယ့် Video ထွက်လာမယ့် Render အပိုင်း
         final_clip.write_videofile(output_video_path, codec="libx264", audio_codec="aac", threads=2, preset='ultrafast')
 
-        # ဖျက်သိမ်းမှုအပိုင်း
         video_clip.close()
         voiceover_clip.close()
         final_clip.close()
