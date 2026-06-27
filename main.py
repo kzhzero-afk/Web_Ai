@@ -1,9 +1,11 @@
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-import shutil, os
+import shutil
+import os
 
 app = FastAPI()
+
 templates = Jinja2Templates(directory="templates")
 
 UPLOAD_DIR = "uploads"
@@ -18,7 +20,7 @@ async def upload(file: UploadFile = File(...),
                  model: str = Form(...),
                  speed: str = Form(...)):
 
-    file_path = f"{UPLOAD_DIR}/{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
