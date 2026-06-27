@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Upload System</title>
+</head>
+<body>
+
+<h2>Upload Video / Audio</h2>
+
+<form action="/process" method="post" enctype="multipart/form-data">
+
+    <input type="file" name="file" required>
+    <br><br>
+
+    <label>Model:</label>
+    <select name="model">
+        <option value="whisper">Whisper (Fast)</option>
+        <option value="google">Google STT</option>
+        <option value="gemini">Gemini AI</option>
+    </select>
+
+    <br><br>
+
+    <label>Speed:</label>
+    <select name="speed">
+        <option value="fast">Fast</option>
+        <option value="balanced">Balanced</option>
+        <option value="high">High Accuracy</option>
+    </select>
+
+    <br><br>
+
+    <button type="submit">Upload</button>
+
+</form>
+
+</body>
+</html>
