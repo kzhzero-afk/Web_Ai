@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
 import requests
+import json
 import base64
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
@@ -12,7 +13,7 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ရဲ့ API Key ကို ဒီမှာ အသေထည့်သွင်းထားပါတယ်
+# 🔑 သင့်ရဲ့ API Key ကို ကုဒ်ထဲမှာ အသေသေချာချာ ထည့်သွင်းပေးထားပါတယ်ဗျာ
 API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
 
 @app.get("/")
@@ -151,7 +152,7 @@ async def upload(
         else:
             audio_base64 = ""
 
-        # --- အဆင့် ၂: Inline Data အနေဖြင့် Gemini ဆီ တိုက်ရိုက်ပို့ပြီး ဇာတ်ညွှန်းတောင်းခြင်း ---
+        # --- အဆင့် ၂: API Headers သုံးပြီး Gemini ဆီ တိုက်ရိုက်ပို့ခြင်း (401 Error ကျော်ရန်) ---
         length_prompt = "1-2 short sentences" if detail == "short" else "3-4 sentences" if detail == "normal" else "detailed paragraphs"
         prompt_lang = "Burmese (မြန်မာဘာသာ)" if voice_lang == "my" else "English"
         
@@ -162,9 +163,14 @@ async def upload(
         Do not use markdown formatting like asterisks. Output clean plain text only.
         """
 
-        # Complex File API အစား လုံခြုံစိတ်ချရတဲ့ Inline Generate Content Endpoint ကို ပြောင်းသုံးခြင်း
-        gen_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+        # API Key ကို URL မှာ မထည့်တော့ဘဲ လုံခြုံစိတ်ချရတဲ့ Header ပုံစံသို့ ပြောင်းလဲထားပါတယ်
+        gen_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
         
+        headers = {
+            "x-goog-api-key": API_KEY,
+            "Content-Type": "application/json"
+        }
+
         parts = [{"text": prompt}]
         if has_audio and audio_base64:
             parts.append({
@@ -176,8 +182,8 @@ async def upload(
 
         payload = {"contents": [{"parts": parts}]}
         
-        print("Generating recap via Gemini Content API...")
-        gen_res = requests.post(gen_url, json=payload)
+        print("Generating recap via Gemini Content API with secure headers...")
+        gen_res = requests.post(gen_url, json=payload, headers=headers)
         
         if gen_res.status_code != 200:
             return {"status": "failed", "stage": "generate", "code": gen_res.status_code, "error": gen_res.text}
@@ -185,7 +191,7 @@ async def upload(
         recap_text = gen_res.json()["candidates"][0]["content"]["parts"][0]["text"]
         print(f"Generated Script: {recap_text}")
 
-        # --- အဆင့် ၃: TTS နှင့် ဗီဒီယို ပြန်လည်တည်းဖြတ်ခြင်း ပိုင်း ---
+        # --- အဆင့် ၃: TTS နှင့် ဗီဒီယို ပြန်လည်တည်းဖြတ်ခြင်း ---
         tts = gTTS(text=recap_text, lang=voice_lang, slow=False)
         tts.save(temp_audio_path)
 
@@ -252,4 +258,3 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
-    
