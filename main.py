@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
-import google.genai as genai
+import google.generativeai as genai  # အားလုံးနဲ့ အဆင်ပြေမယ့် SDK အဟောင်းကို သုံးခြင်း
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
 
@@ -11,8 +11,11 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ရဲ့ API Key ကို ကုဒ်ထဲမှာ တိုက်ရိုက် အသေထည့်ပေးထားလိုက်ပါတယ်ဗျာ
-API_KEY = "AIzaSyAQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
+# 🔑 သင့်ဆီမှာရှိတဲ့ AQ. နဲ့စတဲ့ Key ကိုပဲ ဒီထဲမှာ သေချာ ထည့်ပေးလိုက်ပါဗျာ
+API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
+
+# SDK ကို Key နဲ့ ချိတ်ဆက်ခြင်း
+genai.configure(api_key=API_KEY)
 
 @app.get("/")
 def home():
@@ -45,14 +48,11 @@ def home():
     <body>
         <div class="container">
             <h1>✨ Auto-Synced Video Recap Creator ✨</h1>
-            
             <form action="/upload" method="post" enctype="multipart/form-data">
-                
                 <div class="form-group">
                     <label>📁 မူရင်းဗီဒီယို ထည့်ရန် (Upload Video)</label>
                     <input type="file" name="file" accept="video/*" required>
                 </div>
-
                 <div class="grid">
                     <div class="col">
                         <div class="section-title">ဖြတ်မည့် အမျိုးအစား & Zoom</div>
@@ -80,7 +80,6 @@ def home():
                             </select>
                         </div>
                     </div>
-
                     <div class="col">
                         <div class="section-title">ဇာတ်လမ်းပြောမည့် အသံနှင့် စတိုင်</div>
                         <div class="form-group">
@@ -103,7 +102,6 @@ def home():
                         </div>
                     </div>
                 </div>
-
                 <div class="form-group" style="padding: 0 10px;">
                     <div class="section-title">ဇာတ်လမ်း အသေးစိတ်မှု (Script Detail Level)</div>
                     <div class="radio-group">
@@ -112,7 +110,6 @@ def home():
                         <label class="radio-btn"><input type="radio" name="detail" value="detailed"> အသေးစိတ် (Detailed)</label>
                     </div>
                 </div>
-
                 <button type="submit" class="submit-btn">✨ Create Auto-Synced Video ✨</button>
             </form>
         </div>
@@ -143,10 +140,9 @@ async def upload(
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # တိုက်ရိုက် သတ်မှတ်ထားတဲ့ API_KEY ကို သုံးမယ်
-        client = genai.Client(api_key=API_KEY)
-        print("Uploading video to Gemini...")
-        video_file = client.files.upload(file=orig_video_path)
+        print("Uploading video via legacy method...")
+        # SDK ဟောင်းရဲ့ ဗီဒီယိုတင်နည်းပုံစံ
+        video_file = genai.upload_file(path=orig_video_path)
 
         length_prompt = "1-2 short sentences" if detail == "short" else "3-4 sentences" if detail == "normal" else "detailed paragraphs"
         prompt_lang = "Burmese (မြန်မာဘာသာ)" if voice_lang == "my" else "English"
@@ -158,11 +154,10 @@ async def upload(
         Do not use markdown formatting like asterisks or bullet points. Just output clean plain text.
         """
 
-        print("Analyzing video with Gemini...")
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[video_file, prompt]
-        )
+        print("Analyzing video with Gemini Flash...")
+        # Model ခေါ်ယူပုံစံသစ် ပြင်ဆင်ခြင်း
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content([video_file, prompt])
         recap_text = response.text
         print(f"Generated Script: {recap_text}")
 
@@ -190,7 +185,7 @@ async def upload(
         video_clip.close()
         voiceover_clip.close()
         final_clip.close()
-        client.files.delete(name=video_file.name)
+        genai.delete_file(name=video_file.name)
         if os.path.exists(orig_video_path): os.remove(orig_video_path)
         if os.path.exists(temp_audio_path): os.remove(temp_audio_path)
 
@@ -231,4 +226,4 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
-            
+                           
