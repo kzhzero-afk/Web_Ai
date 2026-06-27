@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
 import requests
-import json  # JSON string အဖြစ် ပြောင်းလဲရန် လိုအပ်ပါတယ်
+import json
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
 
@@ -12,8 +12,9 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ရဲ့ AQ. နဲ့စတဲ့ Key အပြည့်အစုံကို ဒီနေရာမှာ အစားထိုးထည့်ပေးပါဗျာ
+# 🔑 သင့်ဆီကရတဲ့ AQ. Key ကို ကုဒ်ထဲမှာ အသေထည့်ပေးထားပါတယ်ဗျာ
 API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
+
 @app.get("/")
 def home():
     return HTMLResponse("""
@@ -143,7 +144,6 @@ async def upload(
         
         with open(orig_video_path, "rb") as f:
             files = {
-                # bytes parsing အမှားကို json.dumps ဖြင့် သေချာပြင်ဆင်ထားပါတယ်
                 'metadata': (None, json.dumps(metadata), 'application/json'),
                 'file': (video_name, f, file.content_type)
             }
@@ -256,4 +256,3 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
-    
