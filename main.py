@@ -46,7 +46,7 @@ def home():
     </head>
     <body>
         <div class="container">
-            <h1>✨ Auto-Synced Video Recap Creator ✨</h1>
+            <h1>✨ Thandar Aung Auto Recap </h1>
             <form action="/upload" method="post" enctype="multipart/form-data">
                 <div class="form-group">
                     <label>📁 မူရင်းဗီဒီယို ထည့်ရန် (Upload Video)</label>
