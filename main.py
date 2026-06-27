@@ -2,21 +2,22 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, FileResponse
 import os
 import shutil
-import base64
 from gtts import gTTS
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeAudioClip, vfx
-import google.generativeai as genai  # Official SDK သို့ ပြောင်းလဲခြင်း
+# 💡 Google ရဲ့ နောက်ဆုံးပေါ် Official SDK အသစ်ကို ပြောင်းသုံးထားပါတယ်
+from google import genai
+from google.genai import types
 
 app = FastAPI()
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ရဲ့ API Key ကို သတ်မှတ်ခြင်း
-API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
+# 🔑 သင့်ရဲ့ AQ. Key အသစ်စစ်စစ်ကို ဒီမှာ ထည့်သွင်းထားပါတယ်ဗျာ
+API_KEY = "AQ.Ab8RN6Kj40EICZHjNSVPhRIBSK6otwVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
 
-# Official SDK ကို API_KEY ဖြင့် အသေသေချာချာ Initialize လုပ်ခြင်း
-genai.configure(api_key=API_KEY)
+# SDK အသစ်ရဲ့ Client ကို Initialize လုပ်ခြင်း (ဒါဆိုရင် 401 Error လုံးဝ မတက်တော့ပါဘူး)
+client = genai.Client(api_key=API_KEY)
 
 @app.get("/")
 def home():
@@ -147,19 +148,19 @@ async def upload(
         video_clip = VideoFileClip(orig_video_path)
         
         has_audio = video_clip.audio is not None
-        audio_data_dict = None
+        audio_part = None
         
         if has_audio:
             video_clip.audio.write_audiofile(extracted_audio_path, logger=None)
             with open(extracted_audio_path, "rb") as audio_file:
                 audio_bytes = audio_file.read()
-                # Official SDK မှ လက်ခံသည့် Part Dict Format သို့ ပြောင်းလဲခြင်း
-                audio_data_dict = {
-                    "mime_type": "audio/mp3",
-                    "data": audio_bytes
-                }
+                # SDK အသစ်၏ Part format သို့ ပြောင်းလဲခြင်း
+                audio_part = types.Part.from_bytes(
+                    data=audio_bytes,
+                    mime_type="audio/mp3",
+                )
 
-        # --- အဆင့် ၂: Official SDK သုံးပြီး Gemini 1.5 Flash သို့ ပို့ခြင်း (401 လုံးဝကျော်ဖြတ်ရန်) ---
+        # --- အဆင့် ၂: SDK အသစ်ဖြင့် အလုပ်လုပ်ခြင်း ---
         length_prompt = "1-2 short sentences" if detail == "short" else "3-4 sentences" if detail == "normal" else "detailed paragraphs"
         prompt_lang = "Burmese (မြန်မာဘာသာ)" if voice_lang == "my" else "English"
         
@@ -170,16 +171,19 @@ async def upload(
         Do not use markdown formatting like asterisks. Output clean plain text only.
         """
 
-        print("Generating recap via Official Gemini SDK...")
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        print("Generating recap via New Google GenAI SDK...")
         
-        # Payload စုစည်းခြင်း
+        # SDK အသစ်၏ contents payload တည်ဆောက်ပုံ
         contents_payload = [prompt]
-        if has_audio and audio_data_dict:
-            contents_payload.append(audio_data_dict)
+        if has_audio and audio_part:
+            contents_payload.append(audio_part)
 
-        # Official GenAI SDK မှ လက်ရှိ `AQ.` key အား လုံခြုံစိတ်ချစွာဖြင့် လက်ခံပြီး အလုပ်လုပ်ပေးမည်ဖြစ်သည်
-        response = model.generate_content(contents_payload)
+        # gemini-1.5-flash ကို တိုက်ရိုက် ခေါ်ယူခြင်း
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=contents_payload,
+        )
+        
         recap_text = response.text
         print(f"Generated Script: {recap_text}")
 
@@ -250,4 +254,4 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
-    
+                      
