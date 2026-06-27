@@ -6,4 +6,6 @@ gTTS
 moviepy==1.0.3
 decorator==4.4.2
 google-generativeai
+google-genai
+
 
