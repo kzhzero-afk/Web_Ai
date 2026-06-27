@@ -1,33 +1,16 @@
-from fastapi import FastAPI, UploadFile, File, Form, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-import shutil
 import os
 
 app = FastAPI()
 
-templates = Jinja2Templates(directory="templates")
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.post("/upload")
-async def upload(file: UploadFile = File(...),
-                 model: str = Form(...),
-                 speed: str = Form(...)):
-
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    return {
-        "status": "uploaded",
-        "file": file.filename,
-        "model": model,
-        "speed": speed
-    }
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
