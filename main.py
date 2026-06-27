@@ -13,7 +13,7 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 🔑 သင့်ရဲ့ API Key ကို ကုဒ်ထဲမှာ အသေသေချာချာ ထည့်သွင်းပေးထားပါတယ်ဗျာ
+# 🔑 သင့်ရဲ့ API Key အမှန်
 API_KEY = "AQ.Ab8RN6KezttKmwn79SYVncxe6wpJ9TrnEao1FqlyRfrgw8crOA"
 
 @app.get("/")
@@ -152,22 +152,22 @@ async def upload(
         else:
             audio_base64 = ""
 
-        # --- အဆင့် ၂: API Headers သုံးပြီး Gemini ဆီ တိုက်ရိုက်ပို့ခြင်း (401 Error ကျော်ရန်) ---
+        # --- အဆင့် ၂: Google AI Studio REST Standard အတိုင်း သွားခြင်း (401 ကျော်ရန်) ---
         length_prompt = "1-2 short sentences" if detail == "short" else "3-4 sentences" if detail == "normal" else "detailed paragraphs"
         prompt_lang = "Burmese (မြန်မာဘာသာ)" if voice_lang == "my" else "English"
         
         prompt = f"""
-        Act as a professional movie story narrator. Based on the provided audio or video context,
+        Act as a professional movie story narrator. Based on the provided audio context,
         provide a {detail} recap/summary in {prompt_lang} using {style} style.
         The length must be around {length_prompt}.
         Do not use markdown formatting like asterisks. Output clean plain text only.
         """
 
-        # API Key ကို URL မှာ မထည့်တော့ဘဲ လုံခြုံစိတ်ချရတဲ့ Header ပုံစံသို့ ပြောင်းလဲထားပါတယ်
-        gen_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+        # 💡 AQ Key တွေအတွက် အမှန်ကန်ဆုံး URL Parameter ပုံစံသို့ ပြန်ပြောင်းထားပါတယ်
+        gen_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
         
+        # Header မှာ အမှားရှုပ်စေမယ့် x-goog-api-key တွေကို လုံးဝဖယ်ထုတ်လိုက်ပါတယ်
         headers = {
-            "x-goog-api-key": API_KEY,
             "Content-Type": "application/json"
         }
 
@@ -182,7 +182,7 @@ async def upload(
 
         payload = {"contents": [{"parts": parts}]}
         
-        print("Generating recap via Gemini Content API with secure headers...")
+        print("Generating recap via Gemini Content API...")
         gen_res = requests.post(gen_url, json=payload, headers=headers)
         
         if gen_res.status_code != 200:
@@ -258,3 +258,4 @@ def download_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="video/mp4", filename=filename)
     return {"error": "File not found"}
+        
