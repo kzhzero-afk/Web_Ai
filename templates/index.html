@@ -1,38 +1,107 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Upload System</title>
+    <title>AI Video Transcriber</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .box {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            margin: auto;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #38bdf8;
+            border: none;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0ea5e9;
+        }
+
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            text-align: left;
+        }
+    </style>
 </head>
+
 <body>
 
-<h2>Upload Video / Audio</h2>
+<h1>🎬 AI Video Transcriber</h1>
 
-<form action="/process" method="post" enctype="multipart/form-data">
+<div class="box">
 
-    <input type="file" name="file" required>
-    <br><br>
+    <form id="uploadForm">
 
-    <label>Model:</label>
-    <select name="model">
-        <option value="whisper">Whisper (Fast)</option>
-        <option value="google">Google STT</option>
-        <option value="gemini">Gemini AI</option>
-    </select>
+        <input type="file" id="file" required />
 
-    <br><br>
+        <select id="model">
+            <option value="whisper">Whisper (Fast)</option>
+            <option value="google">Google STT (Accurate)</option>
+            <option value="gemini">Gemini AI</option>
+        </select>
 
-    <label>Speed:</label>
-    <select name="speed">
-        <option value="fast">Fast</option>
-        <option value="balanced">Balanced</option>
-        <option value="high">High Accuracy</option>
-    </select>
+        <select id="speed">
+            <option value="fast">Fast</option>
+            <option value="balanced">Balanced</option>
+            <option value="high">High Accuracy</option>
+        </select>
 
-    <br><br>
+        <button type="submit">Upload & Process</button>
 
-    <button type="submit">Upload</button>
+    </form>
 
-</form>
+    <div id="result"></div>
+
+</div>
+
+<script>
+document.getElementById("uploadForm").addEventListener("submit", async function(e){
+    e.preventDefault();
+
+    let file = document.getElementById("file").files[0];
+    let model = document.getElementById("model").value;
+    let speed = document.getElementById("speed").value;
+
+    let formData = new FormData();
+    formData.append("file", file);
+    formData.append("model", model);
+    formData.append("speed", speed);
+
+    document.getElementById("result").innerText = "Processing...";
+
+    let res = await fetch("/upload", {
+        method: "POST",
+        body: formData
+    });
+
+    let data = await res.json();
+
+    document.getElementById("result").innerText =
+        "✅ Upload Success\n\n" + JSON.stringify(data, null, 2);
+});
+</script>
 
 </body>
 </html>
